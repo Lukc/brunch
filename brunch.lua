@@ -4,6 +4,7 @@ local ui = require "brunch.ui"
 local database = require "brunch.db"
 local package = require "brunch.pkg"
 local port = require "brunch.prt"
+local ltin = require "brunch.ltin"
 
 local lfs = require "lfs"
 local argparse = require "argparse"
@@ -83,6 +84,10 @@ for _, filename in ipairs {"/etc/brunch.ltin", userConf} do
 	end
 end
 
+for key, value in pairs(config) do
+	opt[key] = opt[key] or value
+end
+
 if opt.show then
 	local prt, e = port.open(opt.port)
 
@@ -110,21 +115,29 @@ elseif opt.build then
 		os.exit(1)
 	end
 
-	prt:fetch(opt)
+	local r, e = prt:fetch(opt)
+	if not r then
+		ui.error(e)
+		os.exit(1)
+	end
 
 	local r, e = prt:build(opt)
 	if not e then
 		ui.info "Packaging..."
 
-		local package = prt:package(opt)
+		local package, e = prt:package(opt)
 		if package then
 			ui.info(("Package built: '%s'"):format(package))
 
 			prt:clean {}
+		else
+			ui.error(e)
+			os.exit(1)
 		end
 	else
 		if not r then
 			ui.error(e)
+			os.exit(1)
 		end
 	end
 elseif opt.install then

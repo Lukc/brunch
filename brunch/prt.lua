@@ -54,6 +54,17 @@ function _M:fetch(options)
 	local srcdir = options.sourcesDirectory or "."
 	local sources = self.recipe.sources
 
+	-- FIXME: Also check write permissions in it.
+	local attr = lfs.attributes(srcdir)
+	if not attr then
+		return nil, "sources directory cannot be accessed"
+	elseif attr.mode ~= "directory" then
+		return nil, "sources directory is not a directory"
+	end
+
+	local r = true
+	local e
+
 	if not sources then
 		-- Nothing to download? Success!
 		return true
@@ -62,7 +73,8 @@ function _M:fetch(options)
 	for i = 1, #sources do
 		local s = sources[i]
 
-		local f = io.open(s.filename, "r")
+		local filename = ("%s/%s"):format(srcdir, s.filename)
+		local f = io.open(filename, "r")
 
 		if f then
 			f:close()
@@ -71,22 +83,36 @@ function _M:fetch(options)
 		else
 			ui.info("Downloading '", s.filename, "'.")
 
-			os.execute(("wget '%s' -O '%s/%s'"):format(
+			r = r and os.execute(("wget '%s' -O '%s/%s'"):format(
 				s.url, srcdir, s.filename
 			))
+
+			if not r then
+				e = "could not download source"
+			end
 		end
 	end
+
+	return r, e
 end
 
 -- FIXME: Rewrite it all.
 function _M:build(opt)
 	local oldDir = lfs.currentdir()
 
-	local pkgdir = opt.sourcesDirectory or oldDir
+	local pkgdir = opt.packagesDirectory or oldDir
 	local pkgname = ("%s@%s-%s.brunch"):format(
 		self.name, self.recipe.version, self.release
 	)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
+
+	-- FIXME: Also check write permissions in it.
+	local attr = lfs.attributes(pkgdir)
+	if not attr then
+		return nil, "packages directory cannot be accessed"
+	elseif attr.mode ~= "directory" then
+		return nil, "packages directory is not a directory"
+	end
 
 	if lfs.attributes(pkgfilename) and not opt.force then
 		ui.warning(("Package already built: '%s'."):format(pkgname))
@@ -202,6 +228,14 @@ end
 
 function _M:package(opt)
 	local pkgdir = opt.packagesDirectory or lfs.currentdir()
+
+	-- FIXME: Also check write permissions in it.
+	local attr = lfs.attributes(pkgdir)
+	if not attr then
+		return nil, "packages directory cannot be accessed"
+	elseif attr.mode ~= "directory" then
+		return nil, "packages directory is not a directory"
+	end
 
 	local pkgname = ("%s@%s-%s.brunch"):format(
 		self.name, self.recipe.version, self.release
