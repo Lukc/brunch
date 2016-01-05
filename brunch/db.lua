@@ -3,6 +3,14 @@ local fs = require "brunch.fs"
 local ltin = require "brunch.ltin"
 local ui = require "brunch.ui"
 
+local function has(e, a)
+	for i = 1, #a do
+		if a[i] == e then
+			return true
+		end
+	end
+end
+
 local _M = {}
 
 function _M.create(root)
@@ -84,12 +92,59 @@ function _M:listInstalled()
 	return list
 end
 
+local function installFile(self, filename, opt)
+	local attr = lfs.attributes(filename)
+
+	local dest = ("%s/%s"):format(self.root, filename)
+
+	if lfs.attributes(dest) and not (opt.force or opt.update) then
+		-- File exists.
+		if attr.mode ~= "directory" then
+			error("would overwrite file", 0)
+		end
+	else
+		if opt.verbose then
+			io.write("<IN>  ", attr.permissions, "  ", filename, "\n")
+		end
+
+		if attr.mode == "directory" then
+			-- FIXME: Give it the same permissions…
+			fs.mkdir(dest)
+		elseif attr.mode == "file" then
+			fs.cp(filename, dest)
+		else
+			error("unsupported mode: " .. attr.mode, 0)
+		end
+	end
+end
+
+local function removeFile(file, opt)
+	local attr = lfs.attributes(file)
+
+	if not attr then
+		ui.warning("Could not remove non-existant file: ", file)
+	else
+		if attr.mode == "file" then
+			if opt.verbose then
+				io.write("<RM>  ", attr.permissions, "  ", file, "\n")
+			end
+
+			if not fs.rm(file) then
+				error("error while removing file", 0)
+			end
+		elseif attr.mode == "directory" then
+		else
+			error("unsupported mode: " .. attr.mode, 0)
+		end
+	end
+end
+
 function _M:install(package, opt)
 	if not opt then
 		opt = {}
 	end
 
-	if not opt.force then
+	if not (opt.force or opt.update) then
 		local installed = self:listInstalled()
 
 		for i = 1, #installed do
@@ -100,6 +155,8 @@ function _M:install(package, opt)
 			end
 		end
 	end
+
+	local installedFiles = {}
 
 	local _, e = pcall(fs.cd, package.directory, function()
 		local metaFile = io.open("meta.ltin", "r")
@@ -120,30 +177,8 @@ function _M:install(package, opt)
 				-- Let’s remove that confusing “./” prefix.
 				filename = filename:sub(3, #filename)
 
-				local attr = lfs.attributes(filename)
-
-				local dest = ("%s/%s"):format(self.root, filename)
-
-				if lfs.attributes(dest) and not opt.force then
-					-- File exists.
-					if attr.mode ~= "directory" then
-						error("would overwrite file", 0)
-					end
-				else
-					if opt.verbose then
-						io.write(
-							"<IN>  ", attr.permissions, "  ", filename, "\n")
-					end
-
-					if attr.mode == "directory" then
-						-- FIXME: Give it the same permissions…
-						fs.mkdir(dest)
-					elseif attr.mode == "file" then
-						fs.cp(filename, dest)
-					else
-						error("unsupported mode: " .. attr.mode, 0)
-					end
-				end
+				installFile(self, filename, opt)
+				installedFiles[#installedFiles+1] = filename
 
 				manifest:write(filename, "\n")
 			end)
@@ -184,7 +219,7 @@ function _M:install(package, opt)
 		name = package.name,
 		version = package.version,
 		release = package.release
-	}
+	}, installedFiles
 end
 
 function _M:getDBFileName(name)
@@ -230,24 +265,7 @@ function _M:remove(name, opt)
 	-- Hey, let’s use this!
 	local _, e = pcall(fs.cd, self.root, function()
 		for file in manifestFile:lines() do
-			local attr = lfs.attributes(file)
-
-			if not attr then
-				ui.warning("Could not remove non-existant file: ", file)
-			else
-				if attr.mode == "file" then
-					if opt.verbose then
-						io.write("<RM>  ", attr.permissions, "  ", file, "\n")
-					end
-
-					if not fs.rm(file) then
-						error("error while removing file", 0)
-					end
-				elseif attr.mode == "directory" then
-				else
-					error("unsupported mode: " .. attr.mode, 0)
-				end
-			end
+			removeFile(file, opt)
 		end
 	end)
 
@@ -271,6 +289,68 @@ function _M:remove(name, opt)
 	fs.rm(manifestFileName)
 
 	return entry
+end
+
+function _M:update(package, opt)
+	if not opt then
+		opt = {}
+	end
+
+	local meta
+
+	local _, e = pcall(fs.cd, package.directory, function()
+		local entry = self:info(package.name)
+
+		if not entry then
+			error("package is not installed", 0)
+		end
+
+		local manifestFileName =
+			self:getDBFileName(("manifests/%s@%s-%s"):format(
+				entry.name, entry.version, entry.release
+			))
+
+		local oldManifest = io.open(manifestFileName, "r")
+
+		if not oldManifest then
+			return nil, "could not open old manifest"
+		end
+
+		oldFiles = oldManifest:read("*a")
+		oldManifest:close()
+
+		fs.rm(manifestFileName)
+
+		local newManifest =
+			io.open(("%s/var/lib/brunch/manifests/%s@%s-%s"):format(
+				self.root, package.name, package.version, package.release
+			), "w")
+
+		if not newManifest then
+			error("could not open new manifest", 0)
+		end
+
+
+		local _, installedFiles = self:install(package, opt)
+
+		fs.cd(self.root, function()
+			for file in oldFiles:gmatch("[^\n][^\n]*") do
+				if not has(file, installedFiles) then
+					removeFile(file, opt)
+				end
+			end
+		end)
+	end)
+
+	if e then
+		return nil, e
+	end
+
+	return {
+		name = package.name,
+		version = package.version,
+		release = package.release
+	}
 end
 
 return _M

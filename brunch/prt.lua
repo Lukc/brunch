@@ -83,7 +83,7 @@ function _M:build(opt)
 	local oldDir = lfs.currentdir()
 
 	local pkgdir = opt.sourcesDirectory or oldDir
-	local pkgname = ("%s@%s-%s.lpm"):format(
+	local pkgname = ("%s@%s-%s.brunch"):format(
 		self.name, self.recipe.version, self.release
 	)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
@@ -203,7 +203,7 @@ end
 function _M:package(opt)
 	local pkgdir = opt.packagesDirectory or lfs.currentdir()
 
-	local pkgname = ("%s@%s-%s.lpm"):format(
+	local pkgname = ("%s@%s-%s.brunch"):format(
 		self.name, self.recipe.version, self.release
 	)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)

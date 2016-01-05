@@ -21,12 +21,15 @@ end
 function _M.cd(directory, cb)
 	local oldDir = lfs.currentdir()
 
-	-- FIXME: errors management.
 	lfs.chdir(directory)
 
-	cb()
+	local _, e = pcall(cb)
 
 	lfs.chdir(oldDir)
+
+	if e then
+		error(e, 0)
+	end
 end
 
 function _M.find(directory, callback)

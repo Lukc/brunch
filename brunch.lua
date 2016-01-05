@@ -31,12 +31,17 @@ command:argument("port", "A package.ltin file.", "package.ltin")
 command:flag("-f --force", "Ignores already built packages.")
 
 command = parser:command("install", "Installs a package.")
-command:argument("package", "A lpm package to install."):args(1)
+command:argument("package", "A brunch package to install."):args(1)
+command:flag
+	("-f --force", "Overwrites existing files and reinstalls if needed.")
+
+command = parser:command("update", "Updates a package.")
+command:argument("package", "A brunch package to install."):args(1)
 command:flag
 	("-f --force", "Overwrites existing files and reinstalls if needed.")
 
 command = parser:command("remove", "Uninstalls a package.")
-command:argument("package", "A lpm package to install."):args(1)
+command:argument("package", "A brunch package to install."):args(1)
 
 command = parser:command("list-installed", "List all installed packages.")
 
@@ -132,12 +137,31 @@ elseif opt.install then
 
 	local r, e = db:install(pkg, opt)
 
-	if e then
+	if not r then
 		ui.error(e)
 		pkg:close()
 		os.exit(1)
 	else
 		ui.info(("%s@%s-%s installed"):format(r.name, r.version, r.release))
+	end
+
+	pkg:close()
+elseif opt.update then
+	local pkg, e = package.open(opt.package)
+
+	if not pkg then
+		ui.error(e)
+		os.exit(1)
+	end
+
+	local r, e = db:update(pkg, opt)
+
+	if e then
+		ui.error(e)
+		pkg:close()
+		os.exit(1)
+	else
+		ui.info(("%s@%s-%s updated"):format(r.name, r.version, r.release))
 	end
 
 	pkg:close()
