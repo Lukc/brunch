@@ -1,0 +1,7 @@
+{
+	name = "pbzip2",
+	version = "1.1.12",
+	release = 1,
+	sources = { "https://launchpad.net/pbzip2/1.1/%{version}/+download/pbzip2-%{version}.tar.gz" },
+	depends = { "libbz2" },
+}
