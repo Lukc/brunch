@@ -1,0 +1,21 @@
+{
+	name = "pigz",
+	version = "2.3.3",
+	release = 1,
+	sources = { "http://www.zlib.net/pigz/pigz-%{version}.tar.gz" },
+	depends = { "zlib" },
+	build = [[
+		cd %{name}-%{version}
+
+		sed -i -e "/-o pigz/{s/$/ -lz/}" Makefile
+
+		make
+
+		cp pigz unpigz pigz.1 ../
+	]],
+	install = {
+		pigz = "%{bindir}",
+		unpigz = "%{bindir}",
+		["pigz.1"] = "%{mandir}/man1"
+	}
+}

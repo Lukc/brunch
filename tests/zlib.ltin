@@ -1,0 +1,12 @@
+{
+	name = "zlib",
+	version = "1.2.8",
+	sources = { "http://zlib.net/zlib-%{version}.tar.gz" },
+	build = [[
+		cd %{name}-%{version}
+
+		./configure --prefix=%{prefix}
+
+		make
+	]]
+}
