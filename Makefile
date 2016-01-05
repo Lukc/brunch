@@ -19,3 +19,14 @@ install:
 	install -m0644 brunch/pkg.lua  ${LUA_SHAREDIR}/brunch/pkg.lua
 	install -m0644 brunch/prt.lua  ${LUA_SHAREDIR}/brunch/prt.lua
 	install -m0644 brunch/ui.lua   ${LUA_SHAREDIR}/brunch/ui.lua
+
+uninstall:
+	rm -f "${DESTDIR}${BINDIR}/brunch"
+	rm -f ${LUA_SHAREDIR}/brunch/db.lua
+	rm -f ${LUA_SHAREDIR}/brunch/fs.lua
+	rm -f ${LUA_SHAREDIR}/brunch/ltin.lua
+	rm -f ${LUA_SHAREDIR}/brunch/pkg.lua
+	rm -f ${LUA_SHAREDIR}/brunch/prt.lua
+	rm -f ${LUA_SHAREDIR}/brunch/ui.lua
+	rmdir "${DESTDIR}${LUA_SHAREDIR}/brunch"
+
