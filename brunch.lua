@@ -17,7 +17,7 @@ local function has(element, array)
 end
 
 
-local parser = argparse(arg[0], "Lukc’s Package Manager")
+local parser = argparse(arg[0], "Brunch Package Manager")
 local command
 
 parser:option("-r --root", "Change the system’s root directory.", "/")
