@@ -266,6 +266,7 @@ function _M:package(opt)
 			name = self.name,
 			version = self.version,
 			release = self.release,
+			slot = self.slot,
 
 			architecture = opt.architecture,
 			kernel = opt.kernel,
@@ -319,6 +320,7 @@ function _M.open(recipe)
 		name = recipe.name,
 		version = recipe.version,
 		release = recipe.release or 1,
+		slot = recipe.slot,
 		dependencies = recipe.depends
 	}
 
