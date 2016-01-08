@@ -84,6 +84,34 @@ for _, filename in ipairs {"/etc/brunch.ltin", userConf} do
 	end
 end
 
+if type(config.architecture) ~= "string" then
+	local p = io.popen("uname -m")
+	local arch = p:read("*line")
+	p:close()
+	ui.warning("No “architecture” field in your configuration!")
+	ui.warning("Using the default value: ", arch)
+
+	config.architecture = arch
+end
+
+if type(config.kernel) ~= "string" then
+	local p = io.popen("uname -s")
+	local kernel = p:read("*line"):lower()
+	p:close()
+	ui.warning("No “kernel” field in your configuration!")
+	ui.warning("Using the default value: ", kernel)
+
+	config.kernel = kernel
+end
+
+if type(config.libc) ~= "string" then
+	local libc = "gnu"
+	ui.warning("No “libc” field in your configuration!")
+	ui.warning("Using the default value: ", libc)
+
+	config.libc = libc
+end
+
 for key, value in pairs(config) do
 	opt[key] = opt[key] or value
 end

@@ -1,0 +1,8 @@
+{
+	sourcesDirectory = "/srv/sources",
+	packagesDirectory = "/srv/packages",
+
+	kernel = "linux",
+	libc = "gnu",
+	architecture = "x86_64"
+}

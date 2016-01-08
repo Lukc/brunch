@@ -50,6 +50,13 @@ function _M:getAtoms()
 	}
 end
 
+function _M:getPackageName(opt)
+	return ("%s-%s-%s@%s-%s-%s.brunch"):format(
+		self.name, self.recipe.version, self.release,
+		opt.kernel, opt.libc, opt.architecture
+	)
+end
+
 function _M:fetch(options)
 	local srcdir = options.sourcesDirectory or "."
 	local sources = self.recipe.sources
@@ -101,9 +108,7 @@ function _M:build(opt)
 	local oldDir = lfs.currentdir()
 
 	local pkgdir = opt.packagesDirectory or oldDir
-	local pkgname = ("%s@%s-%s.brunch"):format(
-		self.name, self.recipe.version, self.release
-	)
+	local pkgname = self:getPackageName(opt)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
 
 	-- FIXME: Also check write permissions in it.
@@ -237,9 +242,7 @@ function _M:package(opt)
 		return nil, "packages directory is not a directory"
 	end
 
-	local pkgname = ("%s@%s-%s.brunch"):format(
-		self.name, self.recipe.version, self.release
-	)
+	local pkgname = self:getPackageName(opt)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
 
 	if lfs.attributes(pkgfilename) and not opt.force then
@@ -263,6 +266,10 @@ function _M:package(opt)
 			name = self.name,
 			version = self.version,
 			release = self.release,
+
+			architecture = opt.architecture,
+			kernel = opt.kernel,
+			libc = opt.libc,
 
 			prefixes = defaults
 		})
