@@ -1,0 +1,21 @@
+
+{
+	name = "lua-argparse",
+	version = "0.5.0",
+	sources = { "https://github.com/mpeterv/argparse/archive/%{version}.tar.gz -> %{name}-%{version}.tar.gz" },
+	--slots = "lua",
+	--slots = {"5.1", "5.2", "5.3"},
+	depends = {"lua"},
+	build = [[]],
+	install = [[
+		cd argparse-%{version}
+
+		mkdir -p "$PKG%{sharedir}/lua/5.1"
+		mkdir -p "$PKG%{sharedir}/lua/5.2"
+		mkdir -p "$PKG%{sharedir}/lua/5.3"
+
+		install -m0755 src/argparse.lua "$PKG%{sharedir}/lua/5.3"
+		ln -s "%{sharedir}/lua/5.3/argparse.lua" "$PKG/%{sharedir}/lua/5.1"
+		ln -s "%{sharedir}/lua/5.3/argparse.lua" "$PKG/%{sharedir}/lua/5.2"
+	]]
+}

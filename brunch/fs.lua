@@ -6,7 +6,7 @@ local _M = {}
 -- Isolating the madness in that single file would be awesomely great.
 
 function _M.cp(a, b)
-	return os.execute(("cp '%s' '%s'"):format(a, b))
+	return os.execute(("cp -a '%s' '%s'"):format(a, b))
 end
 
 function _M.mkdir(dirname)
@@ -39,7 +39,7 @@ function _M.find(directory, callback)
 
 			callback(filename)
 
-			if lfs.attributes(filename).mode == "directory" then
+			if lfs.symlinkattributes(filename).mode == "directory" then
 				_M.find(filename, callback)
 			end
 		end

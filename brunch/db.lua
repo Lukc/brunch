@@ -115,13 +115,15 @@ function _M:updateDBEntry(file, package, callback)
 end
 
 local function installFile(self, filename, opt)
-	local attr = lfs.attributes(filename)
+	local attr = lfs.symlinkattributes(filename)
 
 	local dest = ("%s/%s"):format(self.root, filename)
 
 	if lfs.attributes(dest) and not (opt.force or opt.update) then
-		-- File exists.
-		if attr.mode ~= "directory" then
+		-- File exists. Some special files are ignored.
+		if attr.mode == "directory" then
+		elseif attr.mode == "link" then
+		else
 			print(dest)
 			error("would overwrite file", 0)
 		end
@@ -135,6 +137,8 @@ local function installFile(self, filename, opt)
 			fs.mkdir(dest)
 		elseif attr.mode == "file" then
 			fs.cp(filename, dest)
+		elseif attr.mode == "link" then
+			fs.cp(filename, dest)
 		else
 			error("unsupported mode: " .. attr.mode, 0)
 		end
@@ -142,7 +146,7 @@ local function installFile(self, filename, opt)
 end
 
 local function removeFile(file, opt)
-	local attr = lfs.attributes(file)
+	local attr = lfs.symlinkattributes(file)
 
 	if not attr then
 		ui.warning("Could not remove non-existant file: ", file)
