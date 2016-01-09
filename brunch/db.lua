@@ -172,8 +172,6 @@ function _M:isInstalled(package)
 		local sameSlot = (not data.slot) or data.slot == package.slot
 
 		if sameName and sameSlot then
-			ui.error(data.name)
-			ui.warning(tostring(data.slot), "/", tostring(package.slot))
 			return true
 		end
 	end
@@ -183,8 +181,6 @@ function _M:install(package, opt)
 	if not opt then
 		opt = {}
 	end
-
-	ui.warning(package.slot)
 
 	if not (opt.force or opt.update) then
 		if self:isInstalled(package) then
