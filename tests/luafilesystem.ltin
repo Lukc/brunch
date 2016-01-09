@@ -1,0 +1,24 @@
+{
+	name = "luafilesystem",
+	version = "1.6.3",
+	sources = { "https://github.com/keplerproject/luafilesystem/archive/v_1_6_3.tar.gz" },
+	--slots = "lua",
+	slots = {"5.1", "5.2", "5.3"},
+	build = [[
+		cd %{name}-v_1_6_3
+
+		sed -e "
+			/^LUA_LIBDIR/{s:=.*:= %{libdir}/lua/%{slot}:}
+			/^LUA_INC/{s:=.*:= %{includedir}/lua%{slot}:}
+		" config > config.new
+		mv config.new config
+
+		make
+	]],
+	install = [[
+		cd %{name}-v_1_6_3
+
+		mkdir -p "$PKG%{libdir}/lua/%{slot}"
+		install -m0755 src/lfs.so "$PKG%{libdir}/lua/%{slot}"
+	]]
+}
