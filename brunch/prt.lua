@@ -42,6 +42,54 @@ local function substituteVariables(var, recipe, defaults)
 	return var
 end
 
+local defaultBuild = [[
+test -d %{name}-%{version} && cd %{name}-%{version}
+
+test -x configure && {
+	./configure \
+		--prefix=${prefix:-%{prefix}} \
+		--libdir=${libdir:-%{libdir}} \
+		--bindir=${bindir:-%{bindir}} \
+		--mandir=${mandir:-%{mandir}} \
+		--sysconfdir=${confdir:-%{confdir}}
+}
+
+test -f Makefile && {
+	make
+}
+]]
+
+local defaultInstall = [[
+test -d %{name}-%{version} && cd %{name}-%{version}
+
+test -f Makefile && {
+	make DESTDIR="$PKG" install
+}
+]]
+
+
+local function buildFunction(self, slot, default, recipeFunction)
+	local env = ""
+	for key, value in pairs(self.recipe.exports or {}) do
+		env = env .. ";" .. key .. "=\"" .. value .. "\""
+	end
+
+	local f
+	if recipeFunction then
+		f = substituteVariables(recipeFunction, {
+			version = self.version, name = self.name, slot = slot.slot
+		}, defaults)
+	else
+		f = substituteVariables(default, self.recipe, defaults)
+	end
+
+	return os.execute("set -x -e; PKG='"
+		.. self.fakeRoot .. "' "
+		.. env .. ";"
+		.. f
+	)
+end
+
 function _M:getSlots()
 	local t
 
@@ -164,160 +212,40 @@ function _M:fetch(options)
 	return r, e
 end
 
--- FIXME: Rewrite it all.
-function _M:build(opt, slot)
-	local oldDir = lfs.currentdir()
-
-	local pkgdir = opt.packagesDirectory or oldDir
-	local pkgname = self:getPackageName(opt, slot)
-	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
-
-	-- FIXME: Also check write permissions in it.
-	local attr = lfs.attributes(pkgdir)
-	if not attr then
-		return nil, "packages directory cannot be accessed"
-	elseif attr.mode ~= "directory" then
-		return nil, "packages directory is not a directory"
-	end
-
-	if lfs.attributes(pkgfilename) and not opt.force then
-		ui.warning(("Package already built: '%s'."):format(pkgname))
-
-		return pkgname, "package already built"
-	end
-
-	local srcdir = opt.sourcesDirectory or oldDir
-
-	local builddir = fs.mktemp(true)
-
-	self.workingDirectory = builddir
-
-	self.fakeRoot = builddir .. "/pkg"
-	fs.mkdir(self.fakeRoot)
-
-	lfs.chdir(builddir)
-
+function _M:extract(opt, srcdir)
 	local sources = self.recipe.sources
 	if sources then
 		for i = 1, #sources do
 			local source = sources[i]
+			local r
 
 			if source.filename:match(".tar.*$") then
 				ui.info("Extracting '", source.filename, "'")
-				os.execute(("tar xf '%s/%s'"):format(
+				r = os.execute(("tar xf '%s/%s'"):format(
 					srcdir, source.filename
 				))
 			else
 				ui.info("Copying '", source.filename, "'.")
 
-				fs.cp(("%s/%s"):format(
+				r = fs.cp(("%s/%s"):format(
 					srcdir, source.filename
 				), ".")
+			end
+
+			if not r then
+				return nil, "extraction or copy failed"
 			end
 		end
 	end
 
-	local env = ""
-	for key, value in pairs(self.recipe.exports or {}) do
-		env = env .. ";" .. key .. "=\"" .. value .. "\""
-	end
-
-	-- Okay, that part is even uglier.
-	local r, e
-	if self.recipe.build then
-		local build = substituteVariables(self.recipe.build, {
-			version = self.version, name = self.name, slot = slot.slot
-		}, defaults)
-		r, e = os.execute("set -x -e; PKG='"
-			.. self.fakeRoot .. "' "
-			.. env .. ";"
-			.. build
-		)
-	else
-		r, e = os.execute("set -x -e; PKG='"
-			.. self.fakeRoot .. "' "
-			.. env .. ";" .. substituteVariables([[
-
-test -d %{name}-%{version} && cd %{name}-%{version}
-
-test -x configure && {
-	./configure \
-		--prefix=${prefix:-%{prefix}} \
-		--libdir=${libdir:-%{libdir}} \
-		--bindir=${bindir:-%{bindir}} \
-		--mandir=${mandir:-%{mandir}} \
-		--sysconfdir=${confdir:-%{confdir}}
-}
-
-test -f Makefile && {
-	make
-}
-
-		]], self.recipe, defaults)
-		)
-	end
-
-	if not r then
-		return nil, "building failed"
-	end
-
-	local t = type(self.recipe.install)
-	if t == "nil" then
-		r, e = os.execute("set -x -e; PKG='"
-			.. self.fakeRoot .. "'; " .. substituteVariables([[
-
-test -d %{name}-%{version} && cd %{name}-%{version}
-
-test -f Makefile && {
-	make DESTDIR="$PKG" install
-}
-
-			]], self.recipe, defaults))
-	elseif t == "string" then
-		local install = substituteVariables(self.recipe.build, {
-			version = self.version, name = self.name, slot = slot.slot
-		}, defaults)
-
-		r, e = os.execute("set -x -e; PKG='"
-			.. self.fakeRoot .. "'; " ..
-			install)
-	elseif t == "table" then
-		r = true
-
-		for bin, dir in pairs(self.recipe.install) do
-			fs.mkdir(self.fakeRoot .. "/" .. dir)
-			r = r and fs.cp(bin, self.fakeRoot .. "/" .. dir)
-		end
-	end
-
-	if not r then
-		return nil, "fake-installation failed"
-	end
-
-	lfs.chdir(oldDir)
-
-	return self:package(opt, slot)
+	return true
 end
 
 function _M:package(opt, slot)
 	local pkgdir = opt.packagesDirectory or lfs.currentdir()
 
-	-- FIXME: Also check write permissions in it.
-	local attr = lfs.attributes(pkgdir)
-	if not attr then
-		return nil, "packages directory cannot be accessed"
-	elseif attr.mode ~= "directory" then
-		return nil, "packages directory is not a directory"
-	end
-
 	local pkgname = self:getPackageName(opt, slot)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
-
-	if lfs.attributes(pkgfilename) and not opt.force then
-		ui.warning(("Package already built: '%s'."):format(pkgname))
-
-		return pkgname, "package already built"
-	end
 
 	local r
 	fs.cd(self.fakeRoot, function()
@@ -359,6 +287,70 @@ function _M:package(opt, slot)
 	end
 
 	return pkgname
+end
+
+function _M:build(opt, slot)
+	local pkgdir = opt.packagesDirectory or lfs.currentdir()
+	local srcdir = opt.sourcesDirectory or lfs.currentdir()
+
+	local pkgname = self:getPackageName(opt, slot)
+	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
+
+	-- FIXME: Also check write permissions in it.
+	local attr = lfs.attributes(pkgdir)
+	if not attr then
+		return nil, "packages directory cannot be accessed"
+	elseif attr.mode ~= "directory" then
+		return nil, "packages directory is not a directory"
+	end
+
+	if lfs.attributes(pkgfilename) and not opt.force then
+		ui.warning(("Package already built: '%s'."):format(pkgname))
+
+		return pkgname, "package already built"
+	end
+
+	local builddir = fs.mktemp(true)
+
+	self.workingDirectory = builddir
+
+	self.fakeRoot = builddir .. "/pkg"
+	fs.mkdir(self.fakeRoot)
+
+	local _, e = pcall(fs.cd, builddir, function()
+		local r = self:extract(opt, srcdir)
+		if not r then
+			error("extraction failed", 0)
+		end
+
+		local r, e = buildFunction(self, slot, defaultBuild, self.recipe.build)
+		if not r then
+			error("building failed", 0)
+		end
+
+		local t = type(self.recipe.install)
+		if t == "table" then
+			r = true
+
+			for bin, dir in pairs(self.recipe.install) do
+				fs.mkdir(self.fakeRoot .. "/" .. dir)
+				r = r and fs.cp(bin, self.fakeRoot .. "/" .. dir)
+			end
+		else
+			r, e =
+				buildFunction(self, slot, defaultInstall, self.recipe.install)
+		end
+
+		if not r then
+			error("fake-installation failed", 0)
+		end
+	end)
+
+	if e then
+		return nil, e
+	end
+
+	return self:package(opt, slot)
 end
 
 function _M:clean()
