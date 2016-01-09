@@ -1,0 +1,38 @@
+{
+	name = "lua",
+	version = "5.2.4",
+	slot = "5.2",
+	sources = { "http://www.lua.org/ftp/lua-%{version}.tar.gz" },
+	build = [[
+		cd %{name}-%{version}
+
+		sed "
+			/^INSTALL_TOP=/{s:=.*:= ${PKG}%{prefix}:}
+			/^INSTALL_BIN=/{s:=.*:= ${PKG}%{bindir}:}
+			/^INSTALL_INC=/{s:=.*:= ${PKG}%{includedir}/lua%{slot}:}
+			/^INSTALL_LIB=/{s:=.*:= ${PKG}%{libdir}:}
+			/^INSTALL_MAN=/{s:=.*:= ${PKG}%{mandir}/man1:}
+			/^INSTALL_LMOD=/{s:=.*:= ${PKG}%{sharedir}/lua/\$V:}
+			/^INSTALL_CMOD=/{s:=.*:= ${PKG}%{libdir}/lua/\$V:}
+		" Makefile > Makefile.new
+
+		mv Makefile.new Makefile
+
+		sed "
+			/^#define LUA_LDIR/{s:\t.*: \"%{sharedir}/lua/\" LUA_VDIR \"/\":}
+			/^#define LUA_CDIR/{s:\t.*: \"%{libdir}/lua/\" LUA_VDIR \"/\":}
+		" src/luaconf.h > luaconf.new.h
+
+		mv luaconf.new.h src/luaconf.h
+
+		make linux
+
+		make DESTDIR="$PKG" install
+
+		mv "$PKG%{bindir}/lua" "$PKG%{bindir}/lua%{slot}"
+		mv "$PKG%{bindir}/luac" "$PKG%{bindir}/luac%{slot}"
+		mv "$PKG%{libdir}/liblua.a" "$PKG%{libdir}/liblua.a.%{slot}"
+
+		ln -s "%{libdir}/liblua.a.%{slot}" "$PKG%{libdir}/liblua.a"
+	]]
+}

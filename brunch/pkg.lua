@@ -30,6 +30,7 @@ function _M.open(filename)
 		name = meta.name,
 		version = meta.version,
 		release = meta.release,
+		slot = meta.slot,
 
 		-- Just in case.
 		meta = meta,

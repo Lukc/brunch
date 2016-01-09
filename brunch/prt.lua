@@ -11,6 +11,8 @@ local defaults = {
 	prefix = "/usr",
 	bindir = "/usr/bin",
 	libdir = "/usr/lib",
+	includedir = "/usr/include",
+	sharedir = "/usr/share",
 	mandir = "/usr/share/man",
 	confdir = "/usr/etc",
 }

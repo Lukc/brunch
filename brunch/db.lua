@@ -92,6 +92,28 @@ function _M:listInstalled()
 	return list
 end
 
+function _M:updateDBEntry(file, package, callback)
+	self:updateDBFile("installed.ltin", function(data)
+		local index = 1
+
+		while index <= #data do
+			local entry = data[index]
+			local sameName = entry.name == package.name
+			local sameSlot = (not entry.slot) or entry.slot == package.slot
+
+			if sameName and sameSlot then
+				data[index] = callback(data[index])
+
+				return
+			end
+
+			index = index + 1
+		end
+
+		data[index] = callback(data)
+	end)
+end
+
 local function installFile(self, filename, opt)
 	local attr = lfs.attributes(filename)
 
@@ -100,6 +122,7 @@ local function installFile(self, filename, opt)
 	if lfs.attributes(dest) and not (opt.force or opt.update) then
 		-- File exists.
 		if attr.mode ~= "directory" then
+			print(dest)
 			error("would overwrite file", 0)
 		end
 	else
@@ -139,20 +162,33 @@ local function removeFile(file, opt)
 	end
 end
 
+function _M:isInstalled(package)
+	local installed = self:listInstalled()
+
+	for i = 1, #installed do
+		local data = installed[i]
+
+		local sameName = data.name == package.name
+		local sameSlot = (not data.slot) or data.slot == package.slot
+
+		if sameName and sameSlot then
+			ui.error(data.name)
+			ui.warning(tostring(data.slot), "/", tostring(package.slot))
+			return true
+		end
+	end
+end
+
 function _M:install(package, opt)
 	if not opt then
 		opt = {}
 	end
 
+	ui.warning(package.slot)
+
 	if not (opt.force or opt.update) then
-		local installed = self:listInstalled()
-
-		for i = 1, #installed do
-			local data = installed[i]
-
-			if data.name == package.name then
-				return nil, "package already installed"
-			end
+		if self:isInstalled(package) then
+			return nil, "package already installed"
 		end
 	end
 
@@ -186,29 +222,15 @@ function _M:install(package, opt)
 
 		manifest:close()
 
-		self:updateDBFile("installed.ltin", function(data)
-			local index = 1
-
-			while index <= #data do
-				if data[index].name == package.name then
-					data[index] = {
-						name = package.name,
-						version = package.version,
-						release = package.release
-					}
-
-					return
-				end
-
-				index = index + 1
-			end
-
-			data[index] = {
-				name = package.name,
-				version = package.version,
-				release = package.release
-			}
-		end)
+		self:updateDBEntry("installed.ltin", package,
+			function(data)
+				return {
+					name = package.name,
+					version = package.version,
+					release = package.release,
+					slot = package.slot
+				}
+			end)
 	end)
 
 	if e then
@@ -218,7 +240,8 @@ function _M:install(package, opt)
 	return {
 		name = package.name,
 		version = package.version,
-		release = package.release
+		release = package.release,
+		slot = package.slot
 	}, installedFiles
 end
 
@@ -349,7 +372,8 @@ function _M:update(package, opt)
 	return {
 		name = package.name,
 		version = package.version,
-		release = package.release
+		release = package.release,
+		slot = package.slot
 	}
 end
 
