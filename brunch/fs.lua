@@ -50,5 +50,21 @@ function _M.chmod(file, mode)
 	os.execute(("chmod '%s' '%s'"):format(mode, file))
 end
 
+function _M.mktemp(isDir)
+	local p
+
+	if isDir then
+		p = io.popen("mktemp -d")
+	else
+		p = io.popen("mktemp")
+	end
+
+	local filename = p:read("*a"):gsub("\n$", "")
+
+	p:close()
+
+	return filename
+end
+
 return _M
 

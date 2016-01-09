@@ -143,29 +143,29 @@ elseif opt.build then
 		os.exit(1)
 	end
 
+	local slots = prt:getSlots()
+	if not slots then
+		ui.error("Could not generate the port’s virtual slots list.")
+		os.exit(1)
+	end
+
 	local r, e = prt:fetch(opt)
 	if not r then
 		ui.error(e)
 		os.exit(1)
 	end
 
-	local r, e = prt:build(opt)
-	if not e then
-		ui.info "Packaging..."
+	for i = 1, #slots do
+		local slot = slots[i]
 
-		local package, e = prt:package(opt)
-		if package then
-			ui.info(("Package built: '%s'"):format(package))
+		ui.info("Building ", prt:getSlotAtom(slot), ".")
+		local r, e = prt:build(opt, slot)
 
-			prt:clean {}
-		else
-			ui.error(e)
-			os.exit(1)
-		end
-	else
 		if not r then
 			ui.error(e)
 			os.exit(1)
+		else
+			prt:clean()
 		end
 	end
 elseif opt.install then
@@ -183,6 +183,7 @@ elseif opt.install then
 		pkg:close()
 		os.exit(1)
 	else
+		-- FIXME: Get package atom and display that instead.
 		ui.info(("%s@%s-%s installed"):format(r.name, r.version, r.release))
 	end
 

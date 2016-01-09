@@ -40,23 +40,76 @@ local function substituteVariables(var, recipe, defaults)
 	return var
 end
 
-function _M:getAtoms()
-	local recipe = self.recipe
+function _M:getSlots()
+	local t
 
-	return {
-		("%s %s-%s"):format(
-			recipe.name,
-			recipe.version,
-			recipe.release
-		)
-	}
+	if self.slots then
+		t = {}
+
+		for i = 1, #self.slots do
+			local slot = self.slots[i]
+
+			t[#t+1] = {
+				name = self.name,
+				version = self.version,
+				release = self.release,
+				slot = slot
+			}
+		end
+
+		return t
+	else
+		t = {{
+			name = self.name,
+			version = self.version,
+			release = self.release,
+			slot = self.slot -- Can be nil, be warned.
+		}}
+	end
+
+	return t
 end
 
-function _M:getPackageName(opt)
-	return ("%s-%s-%s@%s-%s-%s.brunch"):format(
-		self.name, self.recipe.version, self.release,
-		opt.kernel, opt.libc, opt.architecture
-	)
+function _M:getSlotAtom(slot)
+	if slot.slot then
+		return ("%s %s-%s:%s"):format(
+			slot.name,
+			slot.version,
+			slot.release,
+			slot.slot
+		)
+	else
+		return ("%s %s-%s"):format(
+			slot.name,
+			slot.version,
+			slot.release
+		)
+	end
+end
+
+function _M:getAtoms()
+	local slots = self:getSlots()
+	local atoms = {}
+
+	for i = 1, #slotss do
+		atoms[#atoms+1] = self:getTargetAtom(slots[i])
+	end
+
+	return atoms
+end
+
+function _M:getPackageName(opt, slot)
+	if slot.slot then
+		return ("%s-%s-%s:%s@%s-%s-%s.brunch"):format(
+			slot.name, slot.version, slot.release, slot.slot,
+			opt.kernel, opt.libc, opt.architecture
+		)
+	else
+		return ("%s-%s-%s@%s-%s-%s.brunch"):format(
+			slot.name, slot.version, slot.release,
+			opt.kernel, opt.libc, opt.architecture
+		)
+	end
 end
 
 function _M:fetch(options)
@@ -106,11 +159,11 @@ function _M:fetch(options)
 end
 
 -- FIXME: Rewrite it all.
-function _M:build(opt)
+function _M:build(opt, slot)
 	local oldDir = lfs.currentdir()
 
 	local pkgdir = opt.packagesDirectory or oldDir
-	local pkgname = self:getPackageName(opt)
+	local pkgname = self:getPackageName(opt, slot)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
 
 	-- FIXME: Also check write permissions in it.
@@ -129,7 +182,7 @@ function _M:build(opt)
 
 	local srcdir = opt.sourcesDirectory or oldDir
 
-	local builddir = io.popen("mktemp -d"):read("*a"):gsub("\n$", "")
+	local builddir = fs.mktemp(true)
 
 	self.workingDirectory = builddir
 
@@ -166,10 +219,13 @@ function _M:build(opt)
 	-- Okay, that part is even uglier.
 	local r, e
 	if self.recipe.build then
+		local build = substituteVariables(self.recipe.build, {
+			version = self.version, name = self.name, slot = slot.slot
+		}, defaults)
 		r, e = os.execute("set -x -e; PKG='"
 			.. self.fakeRoot .. "' "
 			.. env .. ";"
-			.. self.recipe.build
+			.. build
 		)
 	else
 		r, e = os.execute("set -x -e; PKG='"
@@ -212,9 +268,13 @@ test -f Makefile && {
 
 			]], self.recipe, defaults))
 	elseif t == "string" then
+		local install = substituteVariables(self.recipe.build, {
+			version = self.version, name = self.name, slot = slot.slot
+		}, defaults)
+
 		r, e = os.execute("set -x -e; PKG='"
 			.. self.fakeRoot .. "'; " ..
-			self.recipe.install)
+			install)
 	elseif t == "table" then
 		r = true
 
@@ -230,10 +290,10 @@ test -f Makefile && {
 
 	lfs.chdir(oldDir)
 
-	return r
+	return self:package(opt, slot)
 end
 
-function _M:package(opt)
+function _M:package(opt, slot)
 	local pkgdir = opt.packagesDirectory or lfs.currentdir()
 
 	-- FIXME: Also check write permissions in it.
@@ -244,7 +304,7 @@ function _M:package(opt)
 		return nil, "packages directory is not a directory"
 	end
 
-	local pkgname = self:getPackageName(opt)
+	local pkgname = self:getPackageName(opt, slot)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
 
 	if lfs.attributes(pkgfilename) and not opt.force then
@@ -259,6 +319,10 @@ function _M:package(opt)
 
 		r = os.execute(("tar cJf '%s' ."):format(tarball))
 	end)
+
+	if not r then
+		return nil, "could not create content.tar.xz"
+	end
 
 	fs.cd(self.workingDirectory, function()
 		local file = io.open("meta.ltin", "w")
@@ -279,14 +343,16 @@ function _M:package(opt)
 
 		file:close()
 
-		os.execute(("tar cf '%s' meta.ltin content.tar.xz"):format(
+		r, e = os.execute(("tar cf '%s' meta.ltin content.tar.xz"):format(
 			pkgfilename
 		))
 	end)
 
-	if r then
-		return pkgname
+	if not r then
+		return nil, "could not create package"
 	end
+
+	return pkgname
 end
 
 function _M:clean()
@@ -305,7 +371,10 @@ function _M.open(recipe)
 
 	if recipe.sources then
 		for key, value in pairs(recipe.sources) do
-			value = value:gsub("%%{version}", recipe.version or "")
+			value = substituteVariables(value, {
+				version = recipe.version,
+				name = recipe.name
+			})
 
 			recipe.sources[key] = {
 				url = value,
@@ -315,14 +384,13 @@ function _M.open(recipe)
 		end
 	end
 
-	recipe = substituteVariables(recipe, recipe, defaults)
-
 	local _O = {
 		recipe = recipe,
 		name = recipe.name,
 		version = recipe.version,
 		release = recipe.release or 1,
 		slot = recipe.slot,
+		slots = recipe.slots,
 		dependencies = recipe.depends
 	}
 
