@@ -31,10 +31,12 @@ local function substituteVariables(var, recipe, defaults)
 			s = var:match("%%{[a-zA-Z0-9]+}")
 		end
 	elseif t == "table" then
+		local nt = {}
 		for key, value in pairs(var) do
-			var[key] =
+			nt[key] =
 				substituteVariables(value, recipe, defaults)
 		end
+		return nt
 	end
 
 	return var
@@ -53,7 +55,10 @@ function _M:getSlots()
 				name = self.name,
 				version = self.version,
 				release = self.release,
-				slot = slot
+				slot = slot,
+				dependencies = substituteVariables(self.dependencies, {
+					slot = slot
+				})
 			}
 		end
 
@@ -63,7 +68,8 @@ function _M:getSlots()
 			name = self.name,
 			version = self.version,
 			release = self.release,
-			slot = self.slot -- Can be nil, be warned.
+			slot = self.slot, -- Can be nil, be warned.
+			dependencies = self.dependencies
 		}}
 	end
 
@@ -91,8 +97,8 @@ function _M:getAtoms()
 	local slots = self:getSlots()
 	local atoms = {}
 
-	for i = 1, #slotss do
-		atoms[#atoms+1] = self:getTargetAtom(slots[i])
+	for i = 1, #slots do
+		atoms[#atoms+1] = self:getSlotAtom(slots[i])
 	end
 
 	return atoms
@@ -332,13 +338,13 @@ function _M:package(opt, slot)
 			name = self.name,
 			version = self.version,
 			release = self.release,
-			slot = self.slot,
+			slot = slot.slot,
+
+			dependencies = slot.dependencies,
 
 			architecture = opt.architecture,
 			kernel = opt.kernel,
 			libc = opt.libc,
-
-			prefixes = defaults
 		})
 
 		file:close()

@@ -124,16 +124,22 @@ if opt.show then
 		os.exit(1)
 	end
 
-	for _, atom in ipairs(prt:getAtoms()) do
+	for _, slot in ipairs(prt:getSlots()) do
+		local atom = prt:getSlotAtom(slot)
 		-- FIXME: Show status.
 		ui.info(atom)
-		ui.rinfo(("%s[?]"):format(ui.colors.red))
-	end
+		ui.rinfo(("%s[%s]"):format(
+			ui.colors.red,
+			db:isInstalled(slot) and "I" or " "
+		))
 
-	ui.header("Dependencies")
-	for _, name in ipairs(prt.dependencies or {}) do
-		-- FIXME: Add the status of those dependencies.
-		ui.list(name)
+		if prt.dependencies then
+			ui.header("Dependencies")
+			for _, name in ipairs(slot.dependencies or {}) do
+				-- FIXME: Add the status of those dependencies.
+				ui.list(name)
+			end
+		end
 	end
 elseif opt.build then
 	local prt, e = port.open(opt.port)

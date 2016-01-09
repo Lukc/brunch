@@ -4,6 +4,7 @@
 	sources = { "https://github.com/keplerproject/luafilesystem/archive/v_1_6_3.tar.gz" },
 	--slots = "lua",
 	slots = {"5.1", "5.2", "5.3"},
+	depends = {"lua:%{slot}"},
 	build = [[
 		cd %{name}-v_1_6_3
 

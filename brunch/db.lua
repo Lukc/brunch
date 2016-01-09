@@ -220,12 +220,15 @@ function _M:install(package, opt)
 
 		self:updateDBEntry("installed.ltin", package,
 			function(data)
-				return {
+				return meta
+				--[[{
 					name = package.name,
 					version = package.version,
 					release = package.release,
-					slot = package.slot
-				}
+					slot = package.slot,
+
+					dependencies = package.dependencies or {}
+				}]]
 			end)
 	end)
 

@@ -32,6 +32,8 @@ function _M.open(filename)
 		release = meta.release,
 		slot = meta.slot,
 
+		dependencies = meta.dependencies,
+
 		-- Just in case.
 		meta = meta,
 
