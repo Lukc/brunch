@@ -374,10 +374,20 @@ function _M.open(recipe)
 				name = recipe.name
 			})
 
+			local url = value:gsub("%s+->%s.*", "")
+			local filename
+
+			-- If -> was found.
+			if url ~= value then
+				filename = value:gsub("^.*->%s*", "")
+			else
+				filename = url:gsub("^.*/", "")
+			end
+
 			recipe.sources[key] = {
-				url = value,
-				filename = value:gsub("^.*/", ""),
-				protocol = value:gsub(":.*$", "")
+				url = url,
+				filename = filename,
+				protocol = url:gsub(":.*$", "")
 			}
 		end
 	end

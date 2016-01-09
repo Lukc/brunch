@@ -1,7 +1,7 @@
 {
 	name = "luafilesystem",
 	version = "1.6.3",
-	sources = { "https://github.com/keplerproject/luafilesystem/archive/v_1_6_3.tar.gz" },
+	sources = { "https://github.com/keplerproject/luafilesystem/archive/v_1_6_3.tar.gz -> %{name}-%{version}.tar.gz" },
 	--slots = "lua",
 	slots = {"5.1", "5.2", "5.3"},
 	depends = {"lua:%{slot}"},
