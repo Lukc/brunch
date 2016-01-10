@@ -2,6 +2,7 @@
 local fs = require "brunch.fs"
 local ltin = require "brunch.ltin"
 local ui = require "brunch.ui"
+local pkg = require "brunch.pkg"
 
 local function has(e, a)
 	for i = 1, #a do
@@ -252,6 +253,10 @@ function _M:info(name)
 
 	for i = 1, #data do
 		if data[i].name == name then
+			-- Will be of use for things like :getAtom().
+			setmetatable(data[i], {
+				__index = pkg
+			})
 			return data[i]
 		end
 	end

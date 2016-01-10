@@ -6,6 +6,23 @@ local lfs = require "lfs"
 
 local _M = {}
 
+function _M:getAtom()
+	if self.slot then
+		return ("%s %s-%s:%s"):format(
+			self.name,
+			self.version,
+			self.release,
+			self.slot
+		)
+	else
+		return ("%s %s-%s"):format(
+			self.name,
+			self.version,
+			self.release
+		)
+	end
+end
+
 function _M.open(filename)
 	local oldDir = lfs.currentdir()
 

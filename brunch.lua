@@ -189,8 +189,7 @@ elseif opt.install then
 		pkg:close()
 		os.exit(1)
 	else
-		-- FIXME: Get package atom and display that instead.
-		ui.info(("%s@%s-%s installed"):format(r.name, r.version, r.release))
+		ui.info(("%s installed"):format(pkg:getAtom()))
 	end
 
 	pkg:close()
@@ -209,7 +208,7 @@ elseif opt.update then
 		pkg:close()
 		os.exit(1)
 	else
-		ui.info(("%s@%s-%s updated"):format(r.name, r.version, r.release))
+		ui.info(("%s updated"):format(pkg:getAtom()))
 	end
 
 	pkg:close()
@@ -220,7 +219,7 @@ elseif opt.remove then
 		ui.error(e)
 		os.exit(1)
 	else
-		ui.info(("%s@%s-%s removed"):format(r.name, r.version, r.release))
+		ui.info(("%s removed"):format(r:getAtom()))
 	end
 elseif opt["list-installed"] then
 	for _, package in ipairs(db:listInstalled()) do
