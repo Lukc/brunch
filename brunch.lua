@@ -33,13 +33,13 @@ command:flag("-f --force", "Ignores already built packages.")
 
 command = parser:command("install", "Installs a package.")
 command:argument("package", "A brunch package to install."):args(1)
-command:flag
-	("-f --force", "Overwrites existing files and reinstalls if needed.")
+command:flag(
+	"-f --force", "Overwrites existing files and reinstalls if needed.")
 
 command = parser:command("update", "Updates a package.")
 command:argument("package", "A brunch package to install."):args(1)
-command:flag
-	("-f --force", "Overwrites existing files and reinstalls if needed.")
+command:flag(
+	"-f --force", "Overwrites existing files and reinstalls if needed.")
 
 command = parser:command("remove", "Uninstalls a package.")
 command:argument("package", "A brunch package to install."):args(1)
@@ -167,11 +167,13 @@ elseif opt.build then
 		ui.info("Building ", prt:getSlotAtom(slot), ".")
 		local r, e = prt:build(opt, slot)
 
-		if not r then
+		if r then
+			if not e then
+				prt:clean()
+			end
+		else
 			ui.error(e)
 			os.exit(1)
-		else
-			prt:clean()
 		end
 	end
 elseif opt.install then

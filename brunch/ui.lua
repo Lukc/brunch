@@ -20,7 +20,7 @@ function _M.list(...)
 end
 
 function _M.rinfo(...)
-	local str = table.concat(table.pack(...))
+	local str = table.concat({...})
 	io.write("\027[", tostring(72 - _M.len(str)), "G\027[01A")
 	io.write(str)
 	io.write("\027[00m\n")
