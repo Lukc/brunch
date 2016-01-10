@@ -4,5 +4,34 @@
 
 	kernel = "linux",
 	libc = "gnu",
-	architecture = "x86_64"
+	architecture = "x86_64",
+
+	native = {
+		CFLAGS   = "-O2 -pipe -march=x86-64",
+		CXXFLAGS = "-O2 -pipe -march=x86-64",
+		LDFLAGS  = "",
+
+		prefix = "/test",
+		bindir = "/test/bin",
+		libdir = "/test/lib",
+		includedir = "/test/include",
+		sharedir = "/test/share",
+		mandir = "/test/share/man",
+		confdir = "/test/etc"
+	},
+	noarch = {},
+	["linux-gnu-x32"] = {
+		CFLAGS   = "-O2 -pipe -mx32 -I/test/includex32",
+		CXXFLAGS = "-O2 -pipe -mx32 -I/test/includex32",
+		LDFLAGS  = "-mx32 -L/test/libx32",
+		libdir = "/test/libx32",
+		includedir = "/test/includex32"
+	},
+	["linux-gnu-i686"] = {
+		CFLAGS   = "-O2 -pipe -m32 -I/test/include32",
+		CXXFLAGS = "-O2 -pipe -m32 -I/test/lib32",
+		LDFLAGS  = "-m32",
+		libdir = "/test/lib32",
+		includedir = "/test/include32"
+	},
 }

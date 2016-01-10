@@ -1,0 +1,6 @@
+{
+	name = "readline",
+	version = "6.3",
+	sources = { "ftp://ftp.cwru.edu/pub/bash/readline-%{version}.tar.gz" },
+	cross = true
+}

@@ -42,12 +42,17 @@ function _M.open(filename)
 	local meta = ltin.parse(metaFile:read("*a"))
 	metaFile:close()
 
+	print(meta.kernel, "-", meta.libc)
+
 	local _O = {
 		directory = directory,
 		name = meta.name,
 		version = meta.version,
 		release = meta.release,
 		slot = meta.slot,
+		kernel = meta.kernel,
+		libc = meta.libc,
+		architecture = meta.architecture,
 
 		dependencies = meta.dependencies,
 

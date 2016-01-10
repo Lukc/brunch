@@ -25,7 +25,7 @@
 
 		mv luaconf.new.h src/luaconf.h
 
-		make linux
+		make linux MYCFLAGS="%{CFLAGS}" MYLDFLAGS="%{LDFLAGS}"
 
 		make DESTDIR="$PKG" install
 

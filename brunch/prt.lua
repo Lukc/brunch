@@ -51,7 +51,8 @@ test -x configure && {
 		--libdir=${libdir:-%{libdir}} \
 		--bindir=${bindir:-%{bindir}} \
 		--mandir=${mandir:-%{mandir}} \
-		--sysconfdir=${confdir:-%{confdir}}
+		--sysconfdir=${confdir:-%{confdir}} \
+		--includedir=${includedir:-%{includedir}}
 }
 
 test -f Makefile && {
@@ -68,10 +69,16 @@ test -f Makefile && {
 ]]
 
 
-local function buildFunction(self, slot, default, recipeFunction)
+local function buildFunction(self, slot, default, recipeFunction, defaults)
 	local env = ""
 	for key, value in pairs(self.recipe.exports or {}) do
-		env = env .. ";" .. key .. "=\"" .. value .. "\""
+		print(key, "=", value)
+		env = env .. ";export " .. key .. "=\"" .. value .. "\""
+	end
+
+	for key, value in pairs(defaults or {}) do
+		print(key, "=", value)
+		env = env .. ";export " .. key .. "=\"" .. value .. "\""
 	end
 
 	local f
@@ -152,16 +159,16 @@ function _M:getAtoms()
 	return atoms
 end
 
-function _M:getPackageName(opt, slot)
+function _M:getPackageName(opt, slot, target)
 	if slot.slot then
 		return ("%s-%s-%s:%s@%s-%s-%s.brunch"):format(
 			slot.name, slot.version, slot.release, slot.slot,
-			opt.kernel, opt.libc, opt.architecture
+			target.kernel, target.libc, target.architecture
 		)
 	else
 		return ("%s-%s-%s@%s-%s-%s.brunch"):format(
 			slot.name, slot.version, slot.release,
-			opt.kernel, opt.libc, opt.architecture
+			target.kernel, target.libc, target.architecture
 		)
 	end
 end
@@ -241,10 +248,10 @@ function _M:extract(opt, srcdir)
 	return true
 end
 
-function _M:package(opt, slot)
+function _M:package(opt, slot, target)
 	local pkgdir = opt.packagesDirectory or lfs.currentdir()
 
-	local pkgname = self:getPackageName(opt, slot)
+	local pkgname = self:getPackageName(opt, slot, target)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
 
 	local r
@@ -270,9 +277,9 @@ function _M:package(opt, slot)
 
 			dependencies = slot.dependencies,
 
-			architecture = opt.architecture,
-			kernel = opt.kernel,
-			libc = opt.libc,
+			architecture = target.architecture,
+			kernel = target.kernel,
+			libc = target.libc,
 		})
 
 		file:close()
@@ -289,11 +296,11 @@ function _M:package(opt, slot)
 	return pkgname
 end
 
-function _M:build(opt, slot)
+function _M:build(opt, slot, target)
 	local pkgdir = opt.packagesDirectory or lfs.currentdir()
 	local srcdir = opt.sourcesDirectory or lfs.currentdir()
 
-	local pkgname = self:getPackageName(opt, slot)
+	local pkgname = self:getPackageName(opt, slot, target)
 	local pkgfilename = ("%s/%s"):format(pkgdir, pkgname)
 
 	-- FIXME: Also check write permissions in it.
@@ -323,7 +330,8 @@ function _M:build(opt, slot)
 			error("extraction failed", 0)
 		end
 
-		local r, e = buildFunction(self, slot, defaultBuild, self.recipe.build)
+		local r, e = buildFunction(
+			self, slot, defaultBuild, self.recipe.build, target.exports)
 		if not r then
 			error("building failed", 0)
 		end
@@ -337,8 +345,9 @@ function _M:build(opt, slot)
 				r = r and fs.cp(bin, self.fakeRoot .. "/" .. dir)
 			end
 		else
-			r, e =
-				buildFunction(self, slot, defaultInstall, self.recipe.install)
+			r, e = buildFunction(
+				self, slot, defaultInstall, self.recipe.install, target.exports
+			)
 		end
 
 		if not r then
@@ -350,7 +359,7 @@ function _M:build(opt, slot)
 		return nil, e
 	end
 
-	return self:package(opt, slot)
+	return self:package(opt, slot, target)
 end
 
 function _M:clean()
@@ -399,7 +408,10 @@ function _M.open(recipe)
 		release = recipe.release or 1,
 		slot = recipe.slot,
 		slots = recipe.slots,
-		dependencies = recipe.depends
+		dependencies = recipe.depends,
+
+		noarch = recipe.noarch or false,
+		cross = recipe.noarch or false
 	}
 
 	setmetatable(_O, {

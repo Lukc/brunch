@@ -14,7 +14,7 @@ end
 
 local _M = {}
 
-function _M.create(root)
+function _M.create(root, cf)
 	local r
 
 	r = os.execute("mkdir -p '" .. root .. "/var/lib/brunch'")
@@ -28,10 +28,10 @@ function _M.create(root)
 		return nil, "failed to create database's installed packages list"
 	end
 
-	return _M.open(root)
+	return _M.open(root, cf)
 end
 
-function _M.open(root)
+function _M.open(root, configFile)
 	local file = io.open(root .. "/var/lib/brunch/installed.ltin")
 
 	if not file then
@@ -40,15 +40,112 @@ function _M.open(root)
 
 	file:close()
 
+	file = io.open(configFile, "r")
+
 	local _O = {
-		root = root
+		root = root,
+		config = ltin.parse(file:read("*a"))
 	}
+
+	file:close()	
+
+	if type(_O.config.architecture) ~= "string" then
+		local p = io.popen("uname -m")
+		local arch = p:read("*line")
+		p:close()
+		ui.warning("No “architecture” field in your configuration!")
+		ui.warning("Using the default value: ", arch)
+
+		_O.config.architecture = arch
+	end
+
+	if type(_O.config.kernel) ~= "string" then
+		local p = io.popen("uname -s")
+		local kernel = p:read("*line"):lower()
+		p:close()
+		ui.warning("No “kernel” field in your configuration!")
+		ui.warning("Using the default value: ", kernel)
+
+		_O.config.kernel = kernel
+	end
+
+	if type(_O.config.libc) ~= "string" then
+		local libc = "gnu"
+		ui.warning("No “libc” field in your configuration!")
+		ui.warning("Using the default value: ", libc)
+
+		_O.config.libc = libc
+	end
 
 	setmetatable(_O, {
 		__index = _M
 	})
 
 	return _O
+end
+
+-- optional: port
+function _M:getTargets(port)
+	local config = self.config
+	local t = {}
+
+	if config.native then
+		t[#t+1] = {
+			kernel = config.kernel,
+			libc = config.libc,
+			architecture = config.architecture,
+			exports = config.native
+		}
+	else
+		ui.warning("No “native” target in your configuration!")
+	end
+
+	if config.noarch then
+		local target = {
+			kernel = "any",
+			libc = "any",
+			architecture = "any",
+			exports = config.noarch
+		}
+
+		for key, value in pairs(config.native) do
+			if not target.exports[key] then
+				target.exports[key] = value
+			end
+		end
+
+		if port then
+			if port.noarch then
+				return {target}
+			end
+		else
+			t[#t+1] = target
+		end
+	else
+		ui.warning("No “noarch” target in your configuration!")
+	end
+
+	for k,v in pairs(config) do
+		local k, l, a = k:match("^([a-z_0-9]+)-([a-z_0-9]+)-([a-z_0-9]+)$")
+		if k and l and a then
+			local target = {
+				kernel = k,
+				libc = l,
+				architecture = a,
+				exports = v
+			}
+
+			for key, value in pairs(config.native) do
+				if not target.exports[key] then
+					target.exports[key] = value
+				end
+			end
+
+			t[#t+1] = target
+		end
+	end
+
+	return t
 end
 
 function _M:updateDBFile(filename, callback)
@@ -152,7 +249,7 @@ local function removeFile(file, opt)
 	if not attr then
 		ui.warning("Could not remove non-existant file: ", file)
 	else
-		if attr.mode == "file" then
+		if attr.mode == "file" or attr.mode == "link" then
 			if opt.verbose then
 				io.write("<RM>  ", attr.permissions, "  ", file, "\n")
 			end
@@ -175,8 +272,12 @@ function _M:isInstalled(package)
 
 		local sameName = data.name == package.name
 		local sameSlot = (not data.slot) or data.slot == package.slot
+		local sameTriplet =
+			data.kernel == package.kernel and
+			data.libc == package.libc and
+			data.architecture == package.architecture
 
-		if sameName and sameSlot then
+		if sameName and sameSlot and sameTriplet then
 			return true
 		end
 	end

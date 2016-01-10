@@ -1,0 +1,5 @@
+{
+	name = "tcc",
+	version = "0.9.26",
+	sources = { "http://download.savannah.gnu.org/releases/tinycc/tcc-%{version}.tar.bz2" },
+}

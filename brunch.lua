@@ -22,7 +22,11 @@ local parser = argparse(arg[0], "Brunch Package Manager")
 local command
 
 parser:option("-r --root", "Change the system’s root directory.", "/")
+parser:option("-c --config-file", "Use a specific configuration file.",
+	"/etc/brunch.ltin")
 parser:flag("-v --verbose", "Be more talkative.")
+
+command = parser:command("targets", "List the available brunch triplets.")
 
 command = parser:command("show", "Prints the available data on a port.")
 command:argument("port", "A package.ltin file.", "package.ltin")
@@ -52,13 +56,13 @@ if not opt.root:match("^/") then
 	opt.root = lfs.currentdir() .. "/" .. opt.root
 end
 
-local db = database.open(opt.root)
+local db = database.open(opt.root, opt.config_file)
 
 if not db then
 	ui.info("No package database found. Creating one.")
 
 	local e
-	db, e = database.create(opt.root)
+	db, e = database.create(opt.root, opt.config_file)
 
 	if e then
 		ui.error(e)
@@ -66,57 +70,17 @@ if not db then
 	end
 end
 
-local config = {}
-local userConf = ("%s/.config/brunch/config.ltin"):format(os.getenv("HOME"))
-for _, filename in ipairs {"/etc/brunch.ltin", userConf} do
-	local file = io.open(filename, "r")
+for _, key in pairs {"sourcesDirectory", "packagesDirectory"} do
+	opt[key] = opt[key] or db.config[key]
+end
 
-	if file then
-		local content = ltin.parse(file:read("*a"))
+if opt.targets then
+	local t = db:getTargets(config)
 
-		if content then
-			for key, value in pairs(content) do
-				config[key] = config[key] or value
-			end
-		end
-
-		file:close()
+	for _, e in ipairs(t) do
+		ui.list(("%s-%s-%s"):format(e.kernel, e.libc, e.architecture))
 	end
-end
-
-if type(config.architecture) ~= "string" then
-	local p = io.popen("uname -m")
-	local arch = p:read("*line")
-	p:close()
-	ui.warning("No “architecture” field in your configuration!")
-	ui.warning("Using the default value: ", arch)
-
-	config.architecture = arch
-end
-
-if type(config.kernel) ~= "string" then
-	local p = io.popen("uname -s")
-	local kernel = p:read("*line"):lower()
-	p:close()
-	ui.warning("No “kernel” field in your configuration!")
-	ui.warning("Using the default value: ", kernel)
-
-	config.kernel = kernel
-end
-
-if type(config.libc) ~= "string" then
-	local libc = "gnu"
-	ui.warning("No “libc” field in your configuration!")
-	ui.warning("Using the default value: ", libc)
-
-	config.libc = libc
-end
-
-for key, value in pairs(config) do
-	opt[key] = opt[key] or value
-end
-
-if opt.show then
+elseif opt.show then
 	local prt, e = port.open(opt.port)
 
 	if not prt then
@@ -155,25 +119,40 @@ elseif opt.build then
 		os.exit(1)
 	end
 
+	local targets = db:getTargets(prt)
+	if not targets then
+		ui.error("Could not generate the system’s targets list.")
+		os.exit(1)
+	end
+
 	local r, e = prt:fetch(opt)
 	if not r then
 		ui.error(e)
 		os.exit(1)
 	end
 
-	for i = 1, #slots do
-		local slot = slots[i]
+	for j = 1, #targets do
+		local target = targets[j]
 
-		ui.info("Building ", prt:getSlotAtom(slot), ".")
-		local r, e = prt:build(opt, slot)
+		for i = 1, #slots do
+			local slot = slots[i]
 
-		if r then
-			if not e then
-				prt:clean()
+			ui.info(("Building %s for %s-%s-%s."):format(
+				prt:getSlotAtom(slot),
+				target.kernel, target.libc, target.architecture)
+			)
+
+			local r, e = prt:build(opt, slot, target)
+
+			if r then
+				ui.info("Package build: ", r)
+				if not e then
+					prt:clean()
+				end
+			else
+				ui.error(e)
+				os.exit(1)
 			end
-		else
-			ui.error(e)
-			os.exit(1)
 		end
 	end
 elseif opt.install then
