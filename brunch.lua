@@ -224,7 +224,15 @@ elseif opt.remove then
 	end
 elseif opt["list-installed"] then
 	for _, package in ipairs(db:listInstalled()) do
-		ui.list(package.name, " ", package.version, "-", package.release)
+		local s = ("%s %s-%s"):format(
+			package.name, package.version, package.release
+		)
+
+		if package.slot then
+			s = ("%-26s :%s"):format(s, package.slot)
+		end
+
+		ui.list(s)
 	end
 else
 	ui.error("see usage")

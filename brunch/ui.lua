@@ -49,7 +49,10 @@ function _M.len(str)
 end
 
 _M.colors = {
-	red = "\027[31m"
+	bright  = "\027[01m",
+	red     = "\027[31m",
+	blue    = "\027[34m",
+	magenta = "\027[35m"
 }
 
 return _M
