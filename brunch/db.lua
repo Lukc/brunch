@@ -17,16 +17,19 @@ local _M = {}
 function _M.create(root, cf)
 	local r
 
-	r = os.execute("mkdir -p '" .. root .. "/var/lib/brunch'")
+	r = fs.mkdir(root .. "/var/lib/brunch")
 	if not r then return nil, "failed to create database directory" end
 
-	r = os.execute("mkdir -p '" .. root .. "/var/lib/brunch/manifests'")
+	r = fs.mkdir(root .. "/var/lib/brunch/manifests")
 	if not r then return nil, "failed to create database directory" end
 
-	r = os.execute("echo '{}' > '" .. root .. "/var/lib/brunch/installed.ltin'")
-	if not r then
+	local file = io.open(root .. "/var/lib/brunch/installed.ltin", "w")
+	if not file then
 		return nil, "failed to create database's installed packages list"
 	end
+
+	file:write("{}")
+	file:close()
 
 	return _M.open(root, cf)
 end
