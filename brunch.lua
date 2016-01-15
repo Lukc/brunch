@@ -203,14 +203,21 @@ elseif opt.remove then
 		ui.info(("%s removed"):format(r:getAtom()))
 	end
 elseif opt["list-installed"] then
-	for _, package in ipairs(db:listInstalled()) do
+	for _, pkg in ipairs(db:listInstalled()) do
 		local s = ("%s %s-%s"):format(
-			package.name, package.version, package.release
+			pkg.name, pkg.version, pkg.release
 		)
 
-		if package.slot then
-			s = ("%-26s :%s"):format(s, package.slot)
+		triplet = package.getTriplet(pkg)
+		--("%s-%s-%s"):format(
+		--	pkg.architecture, pkg.kernel, pkg.libc
+		--)
+
+		if pkg.slot then
+			s = ("%-26s :%s"):format(s, pkg.slot)
 		end
+
+		s = ("%-34s %s"):format(s, triplet)
 
 		ui.list(s)
 	end

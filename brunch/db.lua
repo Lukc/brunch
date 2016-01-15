@@ -283,6 +283,17 @@ function _M:isInstalled(package)
 	end
 end
 
+function _M:getManifestFileName(package)
+	return ("%s/var/lib/brunch/manifests/%s@%s-%s@%s"):format(
+		self.root, package.name, package.version, package.release,
+		package:getTriplet()
+	)
+end
+
+function _M:getManifest(package, mode)
+	return io.open(self:getManifestFileName(package), mode or "r")
+end
+
 function _M:install(package, opt)
 	if not opt then
 		opt = {}
@@ -301,10 +312,7 @@ function _M:install(package, opt)
 		local meta = ltin.parse(metaFile:read("*a"))
 		metaFile:close()
 
-		local manifest =
-			io.open(("%s/var/lib/brunch/manifests/%s@%s-%s"):format(
-				self.root, package.name, package.version, package.release
-			), "w")
+		local manifest = self:getManifest(package, "w")
 
 		if not manifest then
 			error("could not open manifest", 0)
@@ -374,13 +382,9 @@ function _M:remove(name, opt)
 		return nil, "package is not installed"
 	end
 
-	local manifestFileName = self:getDBFileName(("manifests/%s@%s-%s"):format(
-		entry.name, entry.version, entry.release
-	))
-
 	-- We’re using r+ because if we can’t get write permissions, we’ll be
 	-- in trouble to remove the file later on.
-	local manifestFile = io.open(manifestFileName, "r+")
+	local manifestFile = self:getManifest(entry, "r")
 
 	if not manifestFile then
 		return nil, "could not open manifest"
@@ -429,12 +433,7 @@ function _M:update(package, opt)
 			error("package is not installed", 0)
 		end
 
-		local manifestFileName =
-			self:getDBFileName(("manifests/%s@%s-%s"):format(
-				entry.name, entry.version, entry.release
-			))
-
-		local oldManifest = io.open(manifestFileName, "r")
+		local oldManifest = self:getManifest(entry, "r")
 
 		if not oldManifest then
 			return nil, "could not open old manifest"
@@ -443,12 +442,9 @@ function _M:update(package, opt)
 		oldFiles = oldManifest:read("*a")
 		oldManifest:close()
 
-		fs.rm(manifestFileName)
+		fs.rm(self:getManifestFileName(entry))
 
-		local newManifest =
-			io.open(("%s/var/lib/brunch/manifests/%s@%s-%s"):format(
-				self.root, package.name, package.version, package.release
-			), "w")
+		local newManifest = self:getManifest(package)
 
 		if not newManifest then
 			error("could not open new manifest", 0)

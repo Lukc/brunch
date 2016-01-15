@@ -23,6 +23,16 @@ function _M:getAtom()
 	end
 end
 
+function _M:getTriplet()
+	if not self.architecture or not self.libc or not self.kernel then
+		return "noarch"
+	end
+
+	return ("%s-%s-%s"):format(
+		self.architecture, self.libc, self.kernel
+	)
+end
+
 function _M.open(filename)
 	local oldDir = lfs.currentdir()
 
