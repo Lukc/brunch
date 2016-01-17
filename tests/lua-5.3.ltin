@@ -15,17 +15,21 @@
 			/^INSTALL_LMOD=/{s:=.*:= ${PKG}%{sharedir}/lua/\$V:}
 			/^INSTALL_CMOD=/{s:=.*:= ${PKG}%{libdir}/lua/\$V:}
 		" Makefile > Makefile.new
-
 		mv Makefile.new Makefile
 
 		sed "
 			/^#define LUA_LDIR/{s:\t.*: \"%{sharedir}/lua/\" LUA_VDIR \"/\":}
 			/^#define LUA_CDIR/{s:\t.*: \"%{libdir}/lua/\" LUA_VDIR \"/\":}
 		" src/luaconf.h > luaconf.new.h
-
 		mv luaconf.new.h src/luaconf.h
 
-		make linux MYCFLAGS="%{CFLAGS}" MYLDFLAGS="%{LDFLAGS}"
+		sed "
+			s:MYCFLAGS=:&${CFLAGS}:;
+			s:MYLDFLAGS=:&${LDFLAGS}:;
+		" src/Makefile > Makefile.new
+		mv Makefile.new src/Makefile
+
+		make linux
 
 		make DESTDIR="$PKG" install
 
