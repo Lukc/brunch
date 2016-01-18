@@ -6,6 +6,15 @@ Installation
 
 See `Makefile` for a list of variables you can edit from the command line.
 
+With MoonBox
+============
+
+```bash
+moonbox install
+source moonbox env enter
+PREFIX=.moonbox make LUA_VERSION=5.3 install
+```
+
 Dependencies
 ------------
 
